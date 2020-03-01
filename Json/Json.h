@@ -1,13 +1,12 @@
-#pragma once
+#ifndef JSON_API
+#define JSON_API
 
 /**
  * Libraries
  */
 #include <string>
 #include <vector>
-#include <set>
 #include <unordered_map>
-#include <iostream>
 #include <memory>
 
 namespace JsonSer
@@ -30,6 +29,26 @@ namespace JsonSer
             Object,
             Array
         };
+            
+        /**
+         * Reporting error class 
+         */
+        class Reporter {
+
+            vector<string> _diagnostics;
+
+            public: /**************** public members ****************/
+            
+            /**
+             * A method for reporting any error
+             */
+            void ReportUnexpectedChar(const char&, const int&, const char&, const string& additional = "");
+
+            /**
+             * Diagnostic property 
+             */
+            vector<string>& Diagnostics() { return _diagnostics; }
+        };
 
         /**
          * A parser for the json format
@@ -39,7 +58,7 @@ namespace JsonSer
             int _position = 0;
             string _text;
 
-            FILE* _fptr;
+            Reporter _reporter;
 
             /**
              * Returns the char of the <_text>
@@ -56,12 +75,6 @@ namespace JsonSer
              * Ignore whitespace
              */
             void ignoreWhiteSpace();
-
-            /**
-             * Report errors
-             */
-            void report(const char*, char, int);
-            void report(const char*, char, int, char);
 
             /**
              * Helper functions
@@ -85,11 +98,13 @@ namespace JsonSer
             /**
              *  Default constructor 
              */
-            JsonParser(const string&, FILE*);
+            JsonParser(const string&);
 
             ~JsonParser();
 
             Json parse();
+
+            vector<string>& Diagnostics() { return _reporter.Diagnostics(); }
 
         };
 
@@ -139,6 +154,8 @@ namespace JsonSer
          * Actually the implemented
          */
         shared_ptr<struct Impl> _impl;
+
+        vector<string> _diagnostics;
 
         /**
          * To string 
@@ -215,11 +232,16 @@ namespace JsonSer
         /**
          * Getting a json from string
          */
-        static Json fromString(const string&, FILE* fptr = nullptr);
+        static Json fromString(const string&);
         /**
          * Getting a string from json
          */
         string toString() const;
+
+        /**
+         * Returns any diagnostic
+         */
+        vector<string>& Diagnostics() { return _diagnostics; }
 
         /**
          * Comparation
@@ -242,6 +264,12 @@ namespace JsonSer
         friend bool operator==(const Json&, const bool&);
         friend bool operator==(const bool&, const Json&);
 
+        friend bool operator==(const Json&, const char*);
+        friend bool operator==(const char*, const Json&);
+        
+        friend bool operator==(const Json&, const string&);
+        friend bool operator==(const string&, const Json&);
+
         friend ostream& operator<<(std::ostream& out, const Json& json);
     
     };
@@ -255,3 +283,5 @@ namespace JsonSer
     Json JsonObject(initializer_list<pair<string, Json>>);
 
 } // namespace Json
+
+#endif

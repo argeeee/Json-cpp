@@ -136,10 +136,10 @@ int main() {
     }
 
     /**
-     * String
+     * String to String
      */
     {
-        TestAPI::TEST("STRING");
+        TestAPI::TEST("STRING TO STRING");
         Json json("Json String"); // or Json json = "Json String";
         TestAPI::ASSERT(json.toString() == "\"Json String\"");
     }
@@ -149,7 +149,7 @@ int main() {
     {
         TestAPI::TEST("STRING FROM STRING");
         Json json = Json::fromString("\"Json\"");
-        TestAPI::ASSERT((json.toString() == "\"Json\""));
+        TestAPI::ASSERT((json == "Json"));
     }
 
     /**
@@ -172,7 +172,7 @@ int main() {
      */
     {
         TestAPI::TEST("OBJECT FROM STRING");
-        Json json = Json::fromString("{\"height\":20,\"width\":10}", stdout);
+        Json json = Json::fromString("{\"height\":20,\"width\":10}");
 
         TestAPI::ASSERT(
             (json.toString() == "{\"width\":10,\"height\":20}")
@@ -198,9 +198,7 @@ int main() {
      */
     {
         TestAPI::TEST("ARRAY FROM STRING");
-        Json json = Json::fromString("[10,230,\"Mario\",34.760000,true,false,null]", stdout);
-
-        cout << json << endl;
+        Json json = Json::fromString("[10,230,\"Mario\",34.760000,true,false,null]");
 
         TestAPI::ASSERT(
             (json.toString() == "[10,230,\"Mario\",34.760000,true,false,null]")
@@ -232,8 +230,41 @@ int main() {
         json = Json::fromString(testobj);
         cout << "----------------------------------------------------\n" 
             << json << "\n\n";
-
         
+    }
+
+    /**
+     * Multiple (Random 2)
+     */
+    {
+        TestAPI::TEST("MULTIPLE");
+
+        Json json = JsonArray({
+            10, 230, "Mario", 34.76L, true, false, nullptr, JsonObject({
+                {"height", 20},
+                {"width", 10},
+            }),
+            JsonArray({
+                65.7676, "HEllo WORld"
+            })
+        });
+
+        cout << json << '\n';
+    }
+
+    /**
+     * ERROR HANDLING
+     */
+    {
+        TestAPI::TEST("ERROR HANDLING");
+        Json json = Json::fromString("[10, 230, \"Mario\"34.760000, true, false, null]");
+
+        const auto& diagnostics = json.Diagnostics();
+
+        for(const auto& diagnostic : diagnostics)
+            cout << diagnostic << '\n';
+
+        cout << json << endl;
     }
 
     return 0;

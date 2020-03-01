@@ -1,19 +1,32 @@
 #include "Json.h"
-#include <stdio.h>
-#include <iostream>
 
 namespace JsonSer
 {
 
+    /************************** Json Reporter **************************/
+
+    void Json::Reporter::ReportUnexpectedChar(
+        const char& current, const int& position, const char& expected, const string& additional
+    ){
+        string diagnostic = "Unexpected char '";
+        diagnostic.push_back(current);
+        diagnostic += "' at position <";
+        diagnostic += to_string(position);
+        diagnostic += ">, expected '";
+        diagnostic.push_back(expected);
+        diagnostic += "'";
+        if(additional != "") diagnostic += " >>> " + additional + " <<<";
+        _diagnostics.push_back(diagnostic);
+    }
+
+    
     /************************** Json Parser **************************/
 
     /**
      * Default constructor 
      */
-    Json::JsonParser::JsonParser(const string& text, FILE* fptr) {
-        _text = text;
-        _fptr = fptr;
-    }
+    Json::JsonParser::JsonParser(const string& text) 
+        :_text(text) { }
 
     Json::JsonParser::~JsonParser() { }
 
@@ -21,11 +34,9 @@ namespace JsonSer
      * Get the current char
      */
     char Json::JsonParser::current() {
-
         if (_position > _text.size())
             return '\0';
         return _text[_position];
-
     }
 
     /**
@@ -40,23 +51,6 @@ namespace JsonSer
      */
     void Json::JsonParser::ignoreWhiteSpace() {
         while (isWhiteSpace(current())) next();
-    }
-
-    /**
-     * Report errors
-     */
-    void Json::JsonParser::report(const char* error, char c, int p) {
-        if ( _fptr ) {
-            fprintf(_fptr, error, c, p);
-            fprintf(_fptr, "\n");
-        }
-    }
-
-    void Json::JsonParser::report(const char* error, char c, int p, char e) {
-        if ( _fptr ) {
-            fprintf(_fptr, error, c, p, e);
-            fprintf(_fptr, "\n");
-        }
     }
 
     /**
@@ -104,8 +98,6 @@ namespace JsonSer
         
         int length = _position - start;
 
-        cout << _text.substr(start, length) << endl;
-        
         auto value = stold(_text.substr(start, length));
 
         return Json(value);
@@ -141,28 +133,22 @@ namespace JsonSer
         pair<string, Json> kv;
 
         if (current() != '"') {
-            report(
-                "Unxpected char [%c] at position <%d>, expected [%c] for [KEY, value] of an object", 
-                current(), _position, '"'
-            );
+            _reporter.ReportUnexpectedChar(current(), _position, '"', "[KEY, value] of an object");
             _position++;
             return kv;
-       
         }
+
         kv.first = getParsedString();
         ignoreWhiteSpace();
 
         if (current() != ':') {
-            report(
-                "Unxpected char [%c] at position <%d>, expected [%c] for [key, value] of an object", 
-                current(), _position, ':'
-            );
+            _reporter.ReportUnexpectedChar(current(), _position, ':', "[key, value] of an object");
             _position++;
             return kv;
         }
+
         next();
         kv.second = parse();
-
         return kv;
     }
 
@@ -171,7 +157,6 @@ namespace JsonSer
         pair<string, Json> kv;
 
         next();
-
         while ( true ) {
 
             ignoreWhiteSpace();
@@ -192,10 +177,7 @@ namespace JsonSer
             }
 
             else {
-                report(
-                    "Unxpected char [%c] at position <%d>, expected [%c] for end of object", 
-                    current(), _position++, '}'
-                );
+                _reporter.ReportUnexpectedChar(current(), _position, '}', "End of an object");
                 break;
             }
 
@@ -229,10 +211,7 @@ namespace JsonSer
             }
 
             else {
-                report(
-                    "Unxpected char [%c] at position <%d>, expected [%c] for end of array", 
-                    current(), _position, ']'
-                );
+                _reporter.ReportUnexpectedChar(current(), _position, ']', "End of an array");
                 _position++;
                 break;
             }
@@ -270,8 +249,7 @@ namespace JsonSer
         else if( _text.substr(_position, 9) == "undefined" )
             return _position += 9, Json();
 
-        report("Unxpected char [%c] at position <%d>", current(), _position++);
-
+        _reporter.ReportUnexpectedChar(current(), _position, '@', "Any valid json value");
         return Json();
 
     }
@@ -442,9 +420,11 @@ namespace JsonSer
     /**
      * Getting a json from string
      */
-    Json Json::fromString(const string& jsonText, FILE* fptr) {
-        auto parser = JsonParser(jsonText, fptr);
-        return parser.parse();
+    Json Json::fromString(const string& text) {
+        auto parser = JsonParser(text);
+        auto json = parser.parse();
+        json._diagnostics = parser.Diagnostics();
+        return json;
     }
     /**
      * Getting a string from json
@@ -486,7 +466,7 @@ namespace JsonSer
         unordered_map<string, Json> ret;
 
         for(auto& e : obj) 
-            ret.insert({e.first, e.second}); 
+            ret.insert(e); 
 
         return Json(ret);
     }
@@ -544,6 +524,23 @@ namespace JsonSer
     bool operator==(const bool& value, const Json& instance) {
         return instance._impl->_type == Json::JsonType::Bool ?
             (instance._impl->_bool == value) : false;
+    }
+
+    bool operator==(const Json& instance, const char* value) {
+        return instance._impl->_type == Json::JsonType::String ?
+            ((*instance._impl->_string) == value) : false;
+    }
+    bool operator==(const char* value, const Json& instance) {
+        return instance._impl->_type == Json::JsonType::String ?
+            ((*instance._impl->_string) == value) : false;
+    }
+    bool operator==(const Json& instance, const string& value) {
+        return instance._impl->_type == Json::JsonType::String ?
+            ((*instance._impl->_string) == value) : false;
+    }
+    bool operator==(const string& value, const Json& instance) {
+        return instance._impl->_type == Json::JsonType::String ?
+            ((*instance._impl->_string) == value) : false;
     }
 
     ostream& operator<<(std::ostream& os, const Json& json) {
