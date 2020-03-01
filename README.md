@@ -1,5 +1,6 @@
-# Json-cpp
-A json library for c++
+# JSON for Modern C++
+A json library for c++ that allows you to work 
+with json in c++ in the simples and intuitive way
 
 #### This library contains:
 * A Json parser in Json folder
